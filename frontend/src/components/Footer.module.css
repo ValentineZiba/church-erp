@@ -1,0 +1,27 @@
+.footer {
+  border-top: 1px solid var(--border);
+  margin-top: 4rem;
+}
+
+.inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.tagline {
+  margin-top: 0.75rem;
+  max-width: 24rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.copyright {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}

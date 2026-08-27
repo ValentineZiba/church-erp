@@ -1,0 +1,24 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--logo-text, var(--foreground));
+}
+
+.mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--logo-fill, var(--brand));
+  flex-shrink: 0;
+}
+
+.sm .mark {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.sm .word {
+  font-size: 1rem;
+}

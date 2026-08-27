@@ -1,0 +1,113 @@
+.frame {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.rail {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.body {
+  display: flex;
+  min-height: 18rem;
+}
+
+.sidebar {
+  width: 3.5rem;
+  flex-shrink: 0;
+  padding: 0.875rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  border-right: 1px solid var(--border);
+}
+
+.sidebarBrand {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.375rem;
+  background: var(--brand);
+  margin-bottom: 0.5rem;
+}
+
+.sidebarItem {
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.sidebarItemActive {
+  background: var(--brand);
+  opacity: 0.6;
+}
+
+.content {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.625rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--brand);
+}
+
+.statValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.statLabel {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.panel {
+  flex: 1;
+  min-height: 6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+
+.panelRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+}
+
+.panelSmall {
+  height: 3rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--background);
+}

@@ -1,0 +1,55 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: churchos-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: churchos_control
+      MYSQL_USER: churchos
+      MYSQL_PASSWORD: churchos
+    ports:
+      - "3306:3306"
+    volumes:
+      - churchos_mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: churchos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - churchos_redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: churchos-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: churchos
+      RABBITMQ_DEFAULT_PASS: churchos
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - churchos_rabbitmq_data:/var/lib/rabbitmq
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: churchos-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  churchos_mysql_data:
+  churchos_redis_data:
+  churchos_rabbitmq_data:

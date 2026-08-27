@@ -1,0 +1,43 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.emptyPanel {
+  padding: 3rem 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.emptyTitle {
+  font-weight: 600;
+}
+
+.emptyBody {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  max-width: 32rem;
+}
+
+@media (max-width: 56rem) {
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 30rem) {
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+}

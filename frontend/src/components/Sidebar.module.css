@@ -1,0 +1,40 @@
+.sidebar {
+  width: 16rem;
+  flex-shrink: 0;
+  padding: 1.25rem 1rem;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.brand {
+  padding: 0 0.5rem;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+.navItem:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.navItemActive {
+  background: var(--brand-tint);
+  color: var(--brand);
+  font-weight: 600;
+}
