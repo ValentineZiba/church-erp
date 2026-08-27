@@ -12,10 +12,21 @@ import javax.sql.DataSource;
 import org.springframework.stereotype.Component;
 
 /**
- * Resolves a tenant slug to a pooled {@link DataSource}, backed by a bounded, idle-evicting
- * cache so an active church keeps a small warm Hikari pool while an inactive one gets its
- * connections released. Cache miss looks the tenant up in the control-plane {@code tenants}
- * registry and opens a new pool against that tenant's physical database.
+ * Resolves a tenant to a pooled {@link DataSource}, backed by a bounded, idle-evicting cache so
+ * an active church keeps a small warm Hikari pool while an inactive one gets its connections
+ * released.
+ *
+ * <p>Two entry points, deliberately different in strictness:
+ * <ul>
+ *   <li>{@link #getDataSource(String)} — slug-only, looks the tenant up in the control-plane
+ *       registry and requires it to be {@link TenantStatus#ACTIVE}. This is the request path
+ *       ({@code TenantRoutingDataSource}), and the ACTIVE check here is defense-in-depth on top
+ *       of {@code TenantResolverFilter} already having rejected anything non-ACTIVE.</li>
+ *   <li>{@link #getDataSource(Tenant)} — takes a {@link Tenant} the caller already holds and
+ *       trusts, no status check. For {@code TenantProvisioningService}, which needs a pool for a
+ *       brand-new tenant that's still {@code PROVISIONING} — it hasn't earned ACTIVE yet, but
+ *       it's the caller's own row, not an arbitrary request resolving an arbitrary slug.</li>
+ * </ul>
  */
 @Component
 public class TenantDataSourceProvider {
@@ -41,14 +52,20 @@ public class TenantDataSourceProvider {
     }
 
     public DataSource getDataSource(String tenantSlug) {
-        return pools.get(tenantSlug, this::openPool);
+        return pools.get(tenantSlug, slug -> openPool(lookupActiveTenant(slug)));
     }
 
-    private HikariDataSource openPool(String tenantSlug) {
-        Tenant tenant = tenantRegistryRepository.findBySlug(tenantSlug)
+    public DataSource getDataSource(Tenant tenant) {
+        return pools.get(tenant.getSlug(), slug -> openPool(tenant));
+    }
+
+    private Tenant lookupActiveTenant(String tenantSlug) {
+        return tenantRegistryRepository.findBySlug(tenantSlug)
             .filter(candidate -> candidate.getStatus() == TenantStatus.ACTIVE)
             .orElseThrow(() -> new TenantNotFoundException(tenantSlug));
+    }
 
+    private HikariDataSource openPool(Tenant tenant) {
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setJdbcUrl(
             "jdbc:mysql://%s:%d/%s".formatted(tenant.getDbHost(), tenant.getDbPort(), tenant.getDbName()));
@@ -56,7 +73,7 @@ public class TenantDataSourceProvider {
         dataSource.setPassword(tenant.getDbPassword());
         dataSource.setMaximumPoolSize(MAX_POOL_SIZE_PER_TENANT);
         dataSource.setMinimumIdle(1);
-        dataSource.setPoolName("tenant-" + tenantSlug);
+        dataSource.setPoolName("tenant-" + tenant.getSlug());
         return dataSource;
     }
 }

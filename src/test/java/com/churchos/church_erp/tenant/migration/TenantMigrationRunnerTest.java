@@ -30,7 +30,7 @@ class TenantMigrationRunnerTest {
         Tenant active = tenant("gracechapel", TenantStatus.ACTIVE);
         DataSource realDataSource = freshH2DataSource();
         when(tenantRegistryRepository.findByStatus(TenantStatus.ACTIVE)).thenReturn(List.of(active));
-        when(tenantDataSourceProvider.getDataSource("gracechapel")).thenReturn(realDataSource);
+        when(tenantDataSourceProvider.getDataSource(active)).thenReturn(realDataSource);
 
         TenantMigrationSummary summary = runner.migrateAll();
 
@@ -46,8 +46,8 @@ class TenantMigrationRunnerTest {
         DataSource healthyDataSource = freshH2DataSource();
         DataSource brokenDataSource = brokenDataSource();
         when(tenantRegistryRepository.findByStatus(TenantStatus.ACTIVE)).thenReturn(List.of(healthy, broken));
-        when(tenantDataSourceProvider.getDataSource("gracechapel")).thenReturn(healthyDataSource);
-        when(tenantDataSourceProvider.getDataSource("unreachable-church")).thenReturn(brokenDataSource);
+        when(tenantDataSourceProvider.getDataSource(healthy)).thenReturn(healthyDataSource);
+        when(tenantDataSourceProvider.getDataSource(broken)).thenReturn(brokenDataSource);
 
         TenantMigrationSummary summary = runner.migrateAll();
 
@@ -61,7 +61,7 @@ class TenantMigrationRunnerTest {
         Tenant active = tenant("gracechapel", TenantStatus.ACTIVE);
         DataSource realDataSource = freshH2DataSource();
         when(tenantRegistryRepository.findByStatus(TenantStatus.ACTIVE)).thenReturn(List.of(active));
-        when(tenantDataSourceProvider.getDataSource("gracechapel")).thenReturn(realDataSource);
+        when(tenantDataSourceProvider.getDataSource(active)).thenReturn(realDataSource);
 
         TenantMigrationSummary first = runner.migrateAll();
         TenantMigrationSummary second = runner.migrateAll();

@@ -54,7 +54,7 @@ public class TenantMigrationRunner {
 
         for (Tenant tenant : tenants) {
             try {
-                migrate(tenant);
+                migrateOne(tenant);
                 succeeded.add(tenant.getSlug());
             } catch (Exception ex) {
                 log.error("Tenant migration failed for '{}'", tenant.getSlug(), ex);
@@ -66,8 +66,14 @@ public class TenantMigrationRunner {
         return new TenantMigrationSummary(succeeded, failed);
     }
 
-    private void migrate(Tenant tenant) {
-        DataSource dataSource = tenantDataSourceProvider.getDataSource(tenant.getSlug());
+    /**
+     * Applies pending tenant-schema migrations to a single tenant, regardless of its current
+     * {@link TenantStatus}. Used by {@link #migrateAll()} for the ACTIVE sweep, and directly by
+     * {@code TenantProvisioningService} to lay down the baseline schema on a brand-new database
+     * (still {@code PROVISIONING} at that point).
+     */
+    public void migrateOne(Tenant tenant) {
+        DataSource dataSource = tenantDataSourceProvider.getDataSource(tenant);
         Flyway flyway = Flyway.configure()
             .dataSource(dataSource)
             .locations(TENANT_MIGRATION_LOCATION)
