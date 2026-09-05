@@ -1,0 +1,8 @@
+# Default owner for everything in the repo
+* @ValentineZiba
+
+# Multi-tenancy is the highest-severity area in this codebase (see CLAUDE.md) —
+# isolation is database-per-tenant, and a mistake here is a data leak across
+# churches, not a cosmetic bug. Flagged explicitly even though it currently
+# resolves to the same owner as the default rule.
+/src/main/java/com/churchos/church_erp/tenant/ @ValentineZiba
