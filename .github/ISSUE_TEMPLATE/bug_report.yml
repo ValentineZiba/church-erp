@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a problem with church-erp
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tenant-scope
+    attributes:
+      label: Does this involve tenant isolation?
+      description: >
+        Isolation is database-per-tenant (see CLAUDE.md). If this bug involves data crossing
+        between tenant databases, or a TenantContext leak, say so explicitly — it's treated as
+        highest severity.
+      options:
+        - "No"
+        - "Yes — possible cross-tenant data exposure"
+        - "Yes — other tenant-scoped issue"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or stack trace
+      description: >
+        Paste any relevant output. Do not include raw PII or financial data (member records,
+        donation details) — redact before pasting.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit / branch
+      placeholder: e.g. master @ e8e09fb
