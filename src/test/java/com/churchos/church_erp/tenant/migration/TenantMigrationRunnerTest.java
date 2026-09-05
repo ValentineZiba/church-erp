@@ -88,7 +88,7 @@ class TenantMigrationRunnerTest {
         String schema = "tenant_test_" + UUID.randomUUID().toString().replace("-", "");
         return DataSourceBuilder.create()
             .driverClassName("org.h2.Driver")
-            .url("jdbc:h2:mem:" + schema + ";DB_CLOSE_DELAY=-1")
+            .url("jdbc:h2:mem:" + schema + ";MODE=MySQL;DB_CLOSE_DELAY=-1")
             .username("sa")
             .password("")
             .build();
