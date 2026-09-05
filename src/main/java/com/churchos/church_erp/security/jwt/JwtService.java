@@ -36,8 +36,35 @@ public class JwtService {
             .compact();
     }
 
+    /**
+     * A tenant-user token, scoped to one church. Carries the tenant slug and role as extra claims
+     * so {@code JwtAuthenticationFilter} can both authorize (role) and, critically, refuse to
+     * honor this token on any request that didn't resolve to the same tenant (isolation).
+     */
+    public String generateTenantToken(String subjectEmail, String tenantSlug, String role) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+            .subject(subjectEmail)
+            .claim("tenant", tenantSlug)
+            .claim("role", role)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(now.plus(Duration.ofMinutes(expirationMinutes))))
+            .signWith(key)
+            .compact();
+    }
+
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    /** Null for a plain platform-admin token (made by {@link #generateToken}). */
+    public String extractTenantSlug(String token) {
+        return parseClaims(token).get("tenant", String.class);
+    }
+
+    /** Null for a plain platform-admin token (made by {@link #generateToken}). */
+    public String extractRole(String token) {
+        return parseClaims(token).get("role", String.class);
     }
 
     public boolean isValid(String token) {

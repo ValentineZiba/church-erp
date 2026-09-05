@@ -38,7 +38,6 @@ public class TenantResolverFilter extends OncePerRequestFilter {
     private static final String TENANT_HEADER = "X-Tenant-ID";
 
     private static final List<String> EXEMPT_PATH_PATTERNS = List.of(
-        "/api/auth/**",
         "/api/platform/**",
         "/actuator/**",
         "/v3/api-docs/**",

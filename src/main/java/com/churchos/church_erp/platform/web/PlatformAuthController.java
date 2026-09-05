@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/platform/auth")
 @Tag(name = "Platform Auth", description = "Super-admin (control-plane) authentication")
 public class PlatformAuthController {
 

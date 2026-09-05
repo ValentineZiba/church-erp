@@ -118,13 +118,15 @@ class TenantResolverFilterTest {
     }
 
     @Test
-    void exemptsPlatformAndAuthPaths() {
-        MockHttpServletRequest authRequest = new MockHttpServletRequest("POST", "/api/auth/login");
+    void exemptsPlatformPathsButNotTenantAuth() {
+        MockHttpServletRequest tenantAuthRequest = new MockHttpServletRequest("POST", "/api/auth/login");
+        MockHttpServletRequest platformAuthRequest = new MockHttpServletRequest("POST", "/api/platform/auth/login");
         MockHttpServletRequest platformRequest = new MockHttpServletRequest("GET", "/api/platform/me");
         MockHttpServletRequest actuatorRequest = new MockHttpServletRequest("GET", "/actuator/health");
         MockHttpServletRequest businessRequest = new MockHttpServletRequest("GET", "/api/members");
 
-        assertThat(filter.shouldNotFilter(authRequest)).isTrue();
+        assertThat(filter.shouldNotFilter(tenantAuthRequest)).isFalse();
+        assertThat(filter.shouldNotFilter(platformAuthRequest)).isTrue();
         assertThat(filter.shouldNotFilter(platformRequest)).isTrue();
         assertThat(filter.shouldNotFilter(actuatorRequest)).isTrue();
         assertThat(filter.shouldNotFilter(businessRequest)).isFalse();

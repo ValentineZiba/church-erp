@@ -28,4 +28,22 @@ class JwtServiceTest {
     void gibberishTokenIsRejected() {
         assertThat(jwtService.isValid("not-a-jwt")).isFalse();
     }
+
+    @Test
+    void tenantTokenRoundTripsSubjectTenantAndRole() {
+        String token = jwtService.generateTenantToken("staffer@gracechapel.test", "gracechapel", "STAFF");
+
+        assertThat(jwtService.isValid(token)).isTrue();
+        assertThat(jwtService.extractEmail(token)).isEqualTo("staffer@gracechapel.test");
+        assertThat(jwtService.extractTenantSlug(token)).isEqualTo("gracechapel");
+        assertThat(jwtService.extractRole(token)).isEqualTo("STAFF");
+    }
+
+    @Test
+    void plainPlatformTokenHasNoTenantOrRoleClaims() {
+        String token = jwtService.generateToken("admin@churchos.local");
+
+        assertThat(jwtService.extractTenantSlug(token)).isNull();
+        assertThat(jwtService.extractRole(token)).isNull();
+    }
 }

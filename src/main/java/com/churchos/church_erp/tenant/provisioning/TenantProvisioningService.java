@@ -1,5 +1,9 @@
 package com.churchos.church_erp.tenant.provisioning;
 
+import com.churchos.church_erp.security.tenantuser.domain.TenantUser;
+import com.churchos.church_erp.security.tenantuser.domain.TenantUserRole;
+import com.churchos.church_erp.security.tenantuser.repository.TenantUserRepository;
+import com.churchos.church_erp.tenant.context.TenantContext;
 import com.churchos.church_erp.tenant.domain.Tenant;
 import com.churchos.church_erp.tenant.domain.TenantStatus;
 import com.churchos.church_erp.tenant.exception.InvalidTenantSlugException;
@@ -16,14 +20,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
  * Tenant provisioning (docs/ROADMAP.md §3.4): triggered when a new church signs up or a super
- * admin creates a tenant. Steps 1-3, 6-7 of the roadmap flow are implemented here; steps 4-5
- * (seed default fund/roles/membership statuses, create the first admin user and send an invite)
- * are deliberately NOT — there are no membership/accounting entities or mail infrastructure to
- * seed into yet. Once those modules exist, this is where their seeding call belongs.
+ * admin creates a tenant. Steps 1-3 and 5-7 of the roadmap flow are implemented here; step 4
+ * (seed default fund/membership statuses) is deliberately NOT — there are no membership/accounting
+ * entities to seed into yet. Once those modules exist, this is where their seeding call belongs.
  *
  * <p><b>Deliberately not {@code @Transactional}.</b> The two {@code tenantRegistryRepository.save}
  * calls below (the initial PROVISIONING insert, and the final ACTIVE/FAILED update) must each
@@ -47,6 +51,8 @@ public class TenantProvisioningService {
 
     private final TenantRegistryRepository tenantRegistryRepository;
     private final TenantMigrationRunner tenantMigrationRunner;
+    private final TenantUserRepository tenantUserRepository;
+    private final PasswordEncoder passwordEncoder;
     private final DataSource controlPlaneDataSource;
     private final ApplicationEventPublisher eventPublisher;
     private final String defaultDbHost;
@@ -57,6 +63,8 @@ public class TenantProvisioningService {
     public TenantProvisioningService(
         TenantRegistryRepository tenantRegistryRepository,
         TenantMigrationRunner tenantMigrationRunner,
+        TenantUserRepository tenantUserRepository,
+        PasswordEncoder passwordEncoder,
         @Qualifier("controlPlaneDataSource") DataSource controlPlaneDataSource,
         ApplicationEventPublisher eventPublisher,
         @Value("${DB_HOST:127.0.0.1}") String defaultDbHost,
@@ -66,6 +74,8 @@ public class TenantProvisioningService {
     ) {
         this.tenantRegistryRepository = tenantRegistryRepository;
         this.tenantMigrationRunner = tenantMigrationRunner;
+        this.tenantUserRepository = tenantUserRepository;
+        this.passwordEncoder = passwordEncoder;
         this.controlPlaneDataSource = controlPlaneDataSource;
         this.eventPublisher = eventPublisher;
         this.defaultDbHost = defaultDbHost;
@@ -86,6 +96,7 @@ public class TenantProvisioningService {
         try {
             createDatabaseIfNotExists(tenant.getDbName());
             tenantMigrationRunner.migrateOne(tenant);
+            seedInitialAdminUser(tenant, request);
 
             tenant.setStatus(TenantStatus.ACTIVE);
             tenant = tenantRegistryRepository.save(tenant);
@@ -129,6 +140,32 @@ public class TenantProvisioningService {
                 "CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to create database '" + dbName + "'", ex);
+        }
+    }
+
+    /**
+     * Runs outside any HTTP request, so unlike a normal tenant-scoped repository call there is no
+     * {@code TenantResolverFilter} to resolve {@link TenantContext} beforehand — it must be set
+     * and cleared by hand here (see CLAUDE.md's multi-tenancy rules). Guarded by {@code count() >
+     * 0} so a provisioning retry (this method runs again on a resumed {@code PROVISIONING}/
+     * {@code FAILED} tenant) never creates a second admin or collides on the unique email
+     * constraint.
+     */
+    private void seedInitialAdminUser(Tenant tenant, TenantProvisioningRequest request) {
+        TenantContext.setCurrentTenantSlug(tenant.getSlug());
+        try {
+            if (tenantUserRepository.count() > 0) {
+                return;
+            }
+            TenantUser admin = TenantUser.builder()
+                .email(request.adminEmail())
+                .passwordHash(passwordEncoder.encode(request.adminPassword()))
+                .fullName(request.adminFullName())
+                .role(TenantUserRole.ADMIN)
+                .build();
+            tenantUserRepository.save(admin);
+        } finally {
+            TenantContext.clear();
         }
     }
 

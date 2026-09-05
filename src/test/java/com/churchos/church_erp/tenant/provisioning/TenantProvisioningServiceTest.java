@@ -12,6 +12,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.churchos.church_erp.security.tenantuser.domain.TenantUser;
+import com.churchos.church_erp.security.tenantuser.domain.TenantUserRole;
+import com.churchos.church_erp.security.tenantuser.repository.TenantUserRepository;
 import com.churchos.church_erp.tenant.domain.Tenant;
 import com.churchos.church_erp.tenant.domain.TenantStatus;
 import com.churchos.church_erp.tenant.exception.InvalidTenantSlugException;
@@ -28,11 +31,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 class TenantProvisioningServiceTest {
 
     private final TenantRegistryRepository tenantRegistryRepository = mock(TenantRegistryRepository.class);
     private final TenantMigrationRunner tenantMigrationRunner = mock(TenantMigrationRunner.class);
+    private final TenantUserRepository tenantUserRepository = mock(TenantUserRepository.class);
+    private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final DataSource controlPlaneDataSource = mock(DataSource.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final Connection connection = mock(Connection.class);
@@ -45,9 +51,11 @@ class TenantProvisioningServiceTest {
         when(controlPlaneDataSource.getConnection()).thenReturn(connection);
         when(connection.createStatement()).thenReturn(statement);
         when(tenantRegistryRepository.save(any(Tenant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-password");
 
         service = new TenantProvisioningService(
-            tenantRegistryRepository, tenantMigrationRunner, controlPlaneDataSource, eventPublisher,
+            tenantRegistryRepository, tenantMigrationRunner, tenantUserRepository, passwordEncoder,
+            controlPlaneDataSource, eventPublisher,
             "127.0.0.1", 3306, "churchos", "churchos");
     }
 
@@ -55,7 +63,8 @@ class TenantProvisioningServiceTest {
     void provisionsNewTenantEndToEndAndMarksActive() throws SQLException {
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.empty());
 
-        Tenant result = service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null));
+        Tenant result = service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass"));
 
         assertThat(result.getStatus()).isEqualTo(TenantStatus.ACTIVE);
         assertThat(result.getDbName()).isEqualTo("tenant_gracechapel");
@@ -69,6 +78,13 @@ class TenantProvisioningServiceTest {
         verify(tenantMigrationRunner).migrateOne(result);
         verify(tenantRegistryRepository, times(2)).save(any(Tenant.class));
         verify(eventPublisher).publishEvent(new TenantProvisionedEvent("gracechapel"));
+
+        ArgumentCaptor<TenantUser> savedAdmin = ArgumentCaptor.forClass(TenantUser.class);
+        verify(tenantUserRepository).save(savedAdmin.capture());
+        assertThat(savedAdmin.getValue().getEmail()).isEqualTo("admin@gracechapel.test");
+        assertThat(savedAdmin.getValue().getFullName()).isEqualTo("Grace Admin");
+        assertThat(savedAdmin.getValue().getRole()).isEqualTo(TenantUserRole.ADMIN);
+        assertThat(savedAdmin.getValue().getPasswordHash()).isEqualTo("hashed-password");
     }
 
     @Test
@@ -76,14 +92,17 @@ class TenantProvisioningServiceTest {
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.empty());
 
         Tenant result = service.provision(
-            new TenantProvisioningRequest("Grace Chapel", "gracechapel", "grace-chapel-online"));
+            new TenantProvisioningRequest(
+                "Grace Chapel", "gracechapel", "grace-chapel-online",
+                "admin@gracechapel.test", "Grace Admin", "s3cret-pass"));
 
         assertThat(result.getSubdomain()).isEqualTo("grace-chapel-online");
     }
 
     @Test
     void rejectsInvalidSlugBeforeTouchingAnyCollaborator() {
-        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest("Bad", "Not_A_Slug!", null)))
+        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest(
+            "Bad", "Not_A_Slug!", null, "admin@bad.test", "Bad Admin", "s3cret-pass")))
             .isInstanceOf(InvalidTenantSlugException.class);
 
         verifyNoInteractions(tenantRegistryRepository, tenantMigrationRunner, controlPlaneDataSource, eventPublisher);
@@ -94,7 +113,8 @@ class TenantProvisioningServiceTest {
         Tenant active = existingTenant("gracechapel", TenantStatus.ACTIVE);
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.of(active));
 
-        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null)))
+        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass")))
             .isInstanceOf(TenantAlreadyExistsException.class);
 
         verifyNoInteractions(tenantMigrationRunner, controlPlaneDataSource, eventPublisher);
@@ -106,7 +126,8 @@ class TenantProvisioningServiceTest {
         Tenant suspended = existingTenant("gracechapel", TenantStatus.SUSPENDED);
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.of(suspended));
 
-        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null)))
+        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass")))
             .isInstanceOf(TenantAlreadyExistsException.class);
     }
 
@@ -115,7 +136,8 @@ class TenantProvisioningServiceTest {
         Tenant failed = existingTenant("gracechapel", TenantStatus.FAILED);
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.of(failed));
 
-        Tenant result = service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null));
+        Tenant result = service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass"));
 
         assertThat(result.getStatus()).isEqualTo(TenantStatus.ACTIVE);
         verify(tenantRegistryRepository, times(1)).save(any(Tenant.class));
@@ -126,7 +148,8 @@ class TenantProvisioningServiceTest {
         Tenant provisioning = existingTenant("gracechapel", TenantStatus.PROVISIONING);
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.of(provisioning));
 
-        Tenant result = service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null));
+        Tenant result = service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass"));
 
         assertThat(result.getStatus()).isEqualTo(TenantStatus.ACTIVE);
         verify(tenantRegistryRepository, times(1)).save(any(Tenant.class));
@@ -137,7 +160,8 @@ class TenantProvisioningServiceTest {
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.empty());
         doThrow(new SQLException("connection refused")).when(statement).executeUpdate(anyString());
 
-        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null)))
+        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass")))
             .isInstanceOf(TenantProvisioningException.class);
 
         verifyNoInteractions(tenantMigrationRunner);
@@ -151,7 +175,8 @@ class TenantProvisioningServiceTest {
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.empty());
         doThrow(new RuntimeException("bad migration script")).when(tenantMigrationRunner).migrateOne(any());
 
-        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null)))
+        assertThatThrownBy(() -> service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass")))
             .isInstanceOf(TenantProvisioningException.class)
             .hasCauseInstanceOf(RuntimeException.class);
 
@@ -166,7 +191,8 @@ class TenantProvisioningServiceTest {
         when(tenantRegistryRepository.findBySlug("gracechapel")).thenReturn(Optional.empty());
         doThrow(new RuntimeException("listener exploded")).when(eventPublisher).publishEvent(any());
 
-        Tenant result = service.provision(new TenantProvisioningRequest("Grace Chapel", "gracechapel", null));
+        Tenant result = service.provision(new TenantProvisioningRequest(
+            "Grace Chapel", "gracechapel", null, "admin@gracechapel.test", "Grace Admin", "s3cret-pass"));
 
         assertThat(result.getStatus()).isEqualTo(TenantStatus.ACTIVE);
     }

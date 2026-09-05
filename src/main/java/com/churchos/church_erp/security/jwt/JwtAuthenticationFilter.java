@@ -1,5 +1,6 @@
 package com.churchos.church_erp.security.jwt;
 
+import com.churchos.church_erp.tenant.context.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +16,19 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Authenticates both platform-admin tokens ({@code JwtService#generateToken}) and tenant-user
+ * tokens ({@code JwtService#generateTenantToken}). Runs after {@code TenantResolverFilter} in
+ * {@code SecurityConfig}, so {@link TenantContext} already holds whatever tenant this request
+ * resolved to (or nothing, for control-plane traffic).
+ *
+ * <p><b>Isolation-critical:</b> a tenant-user token is only honored when its embedded tenant
+ * claim matches {@link TenantContext#getCurrentTenantSlug()} for this exact request. This is what
+ * stops a token minted while logged into one church's subdomain from being replayed against a
+ * different tenant (or against platform-admin routes, where no tenant is ever resolved) — without
+ * it, tenant isolation would depend entirely on the client behaving, not on the server enforcing
+ * it.
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -39,14 +53,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(BEARER_PREFIX.length());
 
             if (jwtService.isValid(token)) {
-                String email = jwtService.extractEmail(token);
-                AbstractAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    email, null, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                authenticate(request, token);
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void authenticate(HttpServletRequest request, String token) {
+        String email = jwtService.extractEmail(token);
+        String tokenTenantSlug = jwtService.extractTenantSlug(token);
+
+        String authority;
+        if (tokenTenantSlug == null) {
+            authority = "ROLE_SUPER_ADMIN";
+        } else if (!tokenTenantSlug.equals(TenantContext.getCurrentTenantSlug())) {
+            return;
+        } else {
+            authority = "ROLE_" + jwtService.extractRole(token);
+        }
+
+        AbstractAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            email, null, List.of(new SimpleGrantedAuthority(authority)));
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
