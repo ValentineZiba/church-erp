@@ -12,13 +12,14 @@ export default function Navbar() {
         </Link>
         <nav className={styles.nav}>
           <a href="#modules">Modules</a>
+          <a href="#how">How it works</a>
           <a href="#why">Why ChurchOS</a>
         </nav>
         <div className={styles.actions}>
           <Button href="/login" variant="ghost">
-            Sign in
+            Log in
           </Button>
-          <Button href="/login" variant="primary">
+          <Button href="/login" variant="primary" className={styles.navCta}>
             Get started
           </Button>
         </div>
