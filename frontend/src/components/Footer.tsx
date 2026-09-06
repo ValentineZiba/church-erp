@@ -12,9 +12,14 @@ export default function Footer() {
             accounting, events, and more, in one place.
           </p>
         </div>
-        <p className={styles.copyright}>
-          © {new Date().getFullYear()} ChurchOS. All rights reserved.
-        </p>
+        <div className={styles.metaColumn}>
+          <p className={styles.copyright}>
+            © {new Date().getFullYear()} ChurchOS. All rights reserved.
+          </p>
+          <a href="/platform/login" className={styles.platformLink}>
+            Platform admin
+          </a>
+        </div>
       </div>
     </footer>
   );
