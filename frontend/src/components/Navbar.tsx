@@ -19,7 +19,7 @@ export default function Navbar() {
           <Button href="/login" variant="ghost">
             Log in
           </Button>
-          <Button href="/login" variant="primary" className={styles.navCta}>
+          <Button href="/login" variant="secondary" className={styles.navCta}>
             Get started
           </Button>
         </div>
