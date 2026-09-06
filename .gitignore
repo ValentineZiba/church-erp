@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Dev process logs/pids ###
+*.log
+*.pid
